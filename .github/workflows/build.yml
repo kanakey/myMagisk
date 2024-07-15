@@ -6,7 +6,6 @@ on:
     paths:
       - "app/**"
       - "native/**"
-      - "stub/**"
       - "buildSrc/**"
       - "build.py"
       - "gradle.properties"
@@ -53,7 +52,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.sha }}-symbols
-          path: app/build/outputs
+          path: app/apk/build/outputs
           compression-level: 9
 
   test-build:
@@ -118,6 +117,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       - name: AVD test
+        timeout-minutes: 10
         env:
           AVD_TEST_VERBOSE: 1
         run: scripts/avd_test.sh ${{ matrix.version }} ${{ matrix.type }}
@@ -155,6 +155,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       - name: AVD test
+        timeout-minutes: 10
         env:
           FORCE_32_BIT: 1
           AVD_TEST_VERBOSE: 1

@@ -385,6 +385,9 @@ find_boot_image() {
   else
     BOOTIMAGE=$(find_block ramdisk recovery_ramdisk kern-a android_boot kernel bootimg init_boot boot lnx boot_a)
   fi
+  if [ "$BOOTIMAGE" = "init_boot$SLOT" ]; then
+    uname -r | grep -q "android12-" && BOOTIMAGE="boot$SLOT"
+  fi
   if [ -z $BOOTIMAGE ]; then
     # Lets see what fstabs tells me
     BOOTIMAGE=$(grep -v '#' /etc/*fstab* | grep -E '/boot(img)?[^a-zA-Z]' | grep -oE '/dev/[a-zA-Z0-9_./-]*' | head -n 1)
@@ -491,11 +494,7 @@ remove_system_su() {
 api_level_arch_detect() {
   API=$(grep_get_prop ro.build.version.sdk)
   ABI=$(grep_get_prop ro.product.cpu.abi)
-  if [ "$ABI" = "x86" ]; then
-    ARCH=x86
-    ABI32=x86
-    IS64BIT=false
-  elif [ "$ABI" = "arm64-v8a" ]; then
+  if [ "$ABI" = "arm64-v8a" ]; then
     ARCH=arm64
     ABI32=armeabi-v7a
     IS64BIT=true
@@ -503,11 +502,18 @@ api_level_arch_detect() {
     ARCH=x64
     ABI32=x86
     IS64BIT=true
-  else
+  elif [ "$ABI" = "armeabi-v7a" ]; then
     ARCH=arm
-    ABI=armeabi-v7a
     ABI32=armeabi-v7a
     IS64BIT=false
+  elif [ "$ABI" = "x86" ]; then
+    ARCH=x86
+    ABI32=x86
+    IS64BIT=false
+  elif [ "$ABI" = "riscv64" ]; then
+    ARCH=riscv64
+    ABI32=riscv32
+    IS64BIT=true
   fi
 }
 

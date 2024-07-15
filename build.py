@@ -68,12 +68,13 @@ if shutil.which("ccache") is not None:
 cpu_count = multiprocessing.cpu_count()
 os_name = platform.system().lower()
 
-archs = ["armeabi-v7a", "x86", "arm64-v8a", "x86_64"]
+archs = ["armeabi-v7a", "x86", "arm64-v8a", "x86_64", "riscv64"]
 triples = [
     "armv7a-linux-androideabi",
     "i686-linux-android",
     "aarch64-linux-android",
     "x86_64-linux-android",
+    "riscv64-linux-android",
 ]
 default_targets = ["magisk", "magiskinit", "magiskboot", "magiskpolicy", "busybox"]
 support_targets = default_targets + ["resetprop"]
@@ -474,8 +475,10 @@ def build_apk(args, module):
 
     build_type = build_type.lower()
 
-    apk = f"{module}-{build_type}.apk"
-    source = Path(module, "build", "outputs", "apk", build_type, apk)
+    paths = module.split(":")
+
+    apk = f"{paths[-1]}-{build_type}.apk"
+    source = Path(*paths, "build", "outputs", "apk", build_type, apk)
     target = config["outdir"] / apk
     mv(source, target)
     header(f"Output: {target}")
@@ -483,20 +486,25 @@ def build_apk(args, module):
 
 def build_app(args):
     header("* Building the Magisk app")
-    build_apk(args, "app")
+    build_apk(args, ":app:apk")
+
+    build_type = "release" if args.release else "debug"
+
+    # Rename apk-variant.apk to app-variant.apk
+    source = config["outdir"] / f"apk-{build_type}.apk"
+    target = config["outdir"] / f"app-{build_type}.apk"
+    mv(source, target)
 
     # Stub building is directly integrated into the main app
     # build process. Copy the stub APK into output directory.
-    build_type = "release" if args.release else "debug"
-    apk = f"stub-{build_type}.apk"
-    source = Path("app", "src", build_type, "assets", "stub.apk")
-    target = config["outdir"] / apk
+    source = Path("app", "core", "src", build_type, "assets", "stub.apk")
+    target = config["outdir"] / f"stub-{build_type}.apk"
     cp(source, target)
 
 
 def build_stub(args):
     header("* Building the stub app")
-    build_apk(args, "stub")
+    build_apk(args, ":app:stub")
 
 
 def cleanup(args):
@@ -525,9 +533,16 @@ def cleanup(args):
 
     if "java" in args.target:
         header("* Cleaning java")
-        execv([gradlew, "app:clean", "app:shared:clean", "stub:clean"], env=find_jdk())
-        rm_rf(Path("app", "src", "debug"))
-        rm_rf(Path("app", "src", "release"))
+        execv(
+            [
+                gradlew,
+                ":app:apk:clean",
+                ":app:core:clean",
+                ":app:shared:clean",
+                ":app:stub:clean",
+            ],
+            env=find_jdk(),
+        )
 
 
 def setup_ndk(args):
